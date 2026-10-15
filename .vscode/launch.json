@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Quick MNIST activation check",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_experiment.py",
+      "console": "integratedTerminal",
+      "args": ["--suite", "hidden", "--epochs", "2", "--train-limit", "10000", "--test-limit", "2000"]
+    },
+    {
+      "name": "Full hidden-layer comparison",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_experiment.py",
+      "console": "integratedTerminal",
+      "args": ["--suite", "hidden", "--epochs", "20", "--hidden-units", "784"]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run quick activation check",
+      "type": "shell",
+      "command": "python run_experiment.py --suite hidden --epochs 2 --train-limit 10000 --test-limit 2000",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run tests",
+      "type": "shell",
+      "command": "python -m pytest -q",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Editor / OS
+.DS_Store
+.vscode/*.log
+
+# Generated experiment artifacts (keep the directory itself)
+results/*.csv
+results/*.png
+results/*.json
