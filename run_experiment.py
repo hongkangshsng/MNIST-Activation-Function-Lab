@@ -19,6 +19,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--optimizer", choices=("adam", "sgd"), default="adam")
     parser.add_argument("--train-limit", type=int, default=None, help="Use fewer training samples for a quick check.")
     parser.add_argument("--test-limit", type=int, default=None, help="Use fewer test samples for a quick check.")
+    parser.add_argument(
+        "--validation-fraction",
+        type=float,
+        default=0.1,
+        help="Fraction of the official training split held out for validation (default: 0.1).",
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     return parser.parse_args()
@@ -39,6 +45,7 @@ def main() -> None:
         optimizer_name=args.optimizer,
         train_limit=args.train_limit,
         test_limit=args.test_limit,
+        validation_fraction=args.validation_fraction,
         seed=args.seed,
         output_dir=args.output_dir,
     )

@@ -4,7 +4,7 @@
     {
       "label": "Run quick activation check",
       "type": "shell",
-      "command": "python run_experiment.py --suite hidden --epochs 2 --train-limit 10000 --test-limit 2000",
+      "command": "python run_experiment.py --suite hidden --epochs 2 --train-limit 10000 --test-limit 2000 --validation-fraction 0.1",
       "group": "build",
       "problemMatcher": []
     },

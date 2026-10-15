@@ -7,7 +7,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/run_experiment.py",
       "console": "integratedTerminal",
-      "args": ["--suite", "hidden", "--epochs", "2", "--train-limit", "10000", "--test-limit", "2000"]
+      "args": ["--suite", "hidden", "--epochs", "2", "--train-limit", "10000", "--test-limit", "2000", "--validation-fraction", "0.1"]
     },
     {
       "name": "Full hidden-layer comparison",

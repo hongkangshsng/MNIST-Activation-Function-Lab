@@ -63,16 +63,18 @@ def _save_history_plot(history: dict[str, list[float]], label: str, output_dir: 
 
 
 def _save_summary_plot(summary: pd.DataFrame, output_dir: Path) -> None:
-    ordered = summary.sort_values("test_accuracy", ascending=False)
+    """Rank candidates by validation accuracy, never by held-out test data."""
+
+    ordered = summary.sort_values("validation_accuracy", ascending=False)
     fig, ax = plt.subplots(figsize=(10, 5))
-    bars = ax.bar(ordered["experiment"], ordered["test_accuracy"], color="#2563eb")
-    ax.set(title="MNIST test accuracy by activation design", ylabel="Test accuracy", ylim=(0, 1))
+    bars = ax.bar(ordered["experiment"], ordered["validation_accuracy"], color="#2563eb")
+    ax.set(title="MNIST validation accuracy by activation design", ylabel="Validation accuracy", ylim=(0, 1))
     ax.tick_params(axis="x", rotation=25)
     ax.grid(axis="y", alpha=0.25)
-    for bar, score in zip(bars, ordered["test_accuracy"], strict=True):
+    for bar, score in zip(bars, ordered["validation_accuracy"], strict=True):
         ax.text(bar.get_x() + bar.get_width() / 2, score + 0.015, f"{score:.3f}", ha="center", fontsize=9)
     fig.tight_layout()
-    fig.savefig(output_dir / "summary_accuracy.png", dpi=160)
+    fig.savefig(output_dir / "summary_validation_accuracy.png", dpi=160)
     plt.close(fig)
 
 
@@ -103,7 +105,7 @@ def run_suite(config: ExperimentConfig, suite_name: str) -> pd.DataFrame:
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     tf.keras.utils.set_random_seed(config.seed)
-    x_train, y_train, x_test, y_test = load_mnist_for_experiment(config)
+    x_train, y_train, x_val, y_val, x_test, y_test = load_mnist_for_experiment(config)
     results: list[dict[str, float | str]] = []
 
     for label, hidden_activation, output_activation in choose_suite(suite_name):
@@ -115,7 +117,7 @@ def run_suite(config: ExperimentConfig, suite_name: str) -> pd.DataFrame:
         fitted = model.fit(
             x_train,
             y_train,
-            validation_data=(x_test, y_test),
+            validation_data=(x_val, y_val),
             epochs=config.epochs,
             batch_size=config.batch_size,
             verbose=2,
@@ -133,14 +135,15 @@ def run_suite(config: ExperimentConfig, suite_name: str) -> pd.DataFrame:
                 "loss": config.loss_name,
                 "optimizer": config.optimizer_name,
                 "train_accuracy": history["accuracy"][-1],
-                "val_accuracy": history["val_accuracy"][-1],
+                "validation_accuracy": history["val_accuracy"][-1],
+                "validation_loss": history["val_loss"][-1],
                 "test_accuracy": float(test_accuracy),
                 "test_loss": float(test_loss),
                 "seconds": elapsed,
             }
         )
 
-    summary = pd.DataFrame(results).sort_values("test_accuracy", ascending=False)
+    summary = pd.DataFrame(results).sort_values("validation_accuracy", ascending=False)
     summary.to_csv(config.output_dir / "metrics.csv", index=False)
     _save_summary_plot(summary, config.output_dir)
     metadata = asdict(config)
@@ -151,7 +154,9 @@ def run_suite(config: ExperimentConfig, suite_name: str) -> pd.DataFrame:
     return summary
 
 
-def load_mnist_for_experiment(config: ExperimentConfig) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def load_mnist_for_experiment(
+    config: ExperimentConfig,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Late import keeps simple static checks independent of a dataset download."""
 
     from .data import load_mnist

@@ -15,6 +15,7 @@ It is an original, modular implementation inspired by the learning objective of 
 1. With all other conditions held fixed, compare `sigmoid`, `tanh`, `relu`, and `softplus` in the hidden layers on MNIST loss and accuracy.
 2. Explain why `softmax` is the standard output activation for one-of-ten digit classification.
 3. Provide a `legacy` suite that assigns the same activation to every layer. This is useful for interpreting a textbook-style comparison, but is **not** recommended as a production model design.
+4. Split MNIST's official training data deterministically into fitting and validation subsets; keep the official test set untouched until final evaluation.
 
 ### How should the textbook-style activation table be interpreted?
 
@@ -38,7 +39,7 @@ These are observations from one specific configuration, not a universal activati
 - Each MNIST image is a `28 × 28` grayscale image with pixel values from `0` to `255`.
 - A fully connected layer consumes one feature vector, so every image is flattened to `784 = 28 × 28` values and normalized to `[0, 1]` by dividing by `255`.
 - Digits `0…9` are converted to one-hot labels. For example, `3 → [0,0,0,1,0,0,0,0,0,0]`.
-- Training data updates model weights; validation/test data is held out to measure generalization.
+- Training data updates model weights. With the default `--validation-fraction 0.1`, 54,000 of MNIST's official 60,000 training examples are used for fitting and 6,000 for validation. The official 10,000-image test set remains independent and is used only for final `evaluate()` calls.
 
 ### 2. Network architecture
 
@@ -110,7 +111,7 @@ pip install -r requirements.txt
 Run a small smoke test first:
 
 ```bash
-python run_experiment.py --suite hidden --epochs 2 --train-limit 10000 --test-limit 2000
+python run_experiment.py --suite hidden --epochs 2 --train-limit 10000 --test-limit 2000 --validation-fraction 0.1
 ```
 
 Run the recommended hidden-layer comparison:
@@ -127,8 +128,8 @@ python run_experiment.py --suite legacy --epochs 20 --hidden-units 784 --loss ms
 
 The `results/` directory will contain:
 
-- `metrics.csv`: final loss, accuracy, and running time for every experiment.
-- `summary_accuracy.png`: overall accuracy ranking.
+- `metrics.csv`: final training, validation, and independent-test metrics plus running time for every experiment.
+- `summary_validation_accuracy.png`: candidate ranking by validation accuracy. Select an activation from this measure, not from the test score.
 - `history_*.png`: training and validation loss/accuracy curves.
 - `predictions_*.png`: sixteen test images with true and predicted labels.
 - `run_config.json`: the parameters needed to reproduce the run.
@@ -141,7 +142,23 @@ The important decision process is:
 
 1. Choose the output activation from the task semantics: use Softmax for single-label multiclass MNIST.
 2. Compare hidden activations according to gradient flow, convergence, and preprocessing: ReLU is a strong first choice; tanh and Softplus are meaningful alternatives; Sigmoid is a useful baseline.
-3. Change one variable at a time. Keep the split, seed, architecture, epochs, batch size, loss, and optimizer fixed before interpreting a result.
+3. Choose among activation candidates using the validation metrics. Treat the separate test metric as a final unbiased estimate after the comparison design is locked.
+4. Change one variable at a time. Keep the split, seed, architecture, epochs, batch size, loss, and optimizer fixed before interpreting a result.
+
+## Verification status
+
+The automated tests cover configuration validation, deterministic/disjoint train-validation splitting, and the CLI validation-split option. The current code environment has not yet completed a TensorFlow MNIST training run, so this repository deliberately does **not** claim any new measured activation-function accuracy in the README. Run the quick command above after installing `requirements.txt`; it will write the measured values to `results/metrics.csv` together with the exact run configuration.
+
+### Small-scale verification run (2026-10-16)
+
+The implementation was smoke-tested with TensorFlow 2.19.1 using `--epochs 1 --hidden-units 64 --batch-size 128 --train-limit 2000 --test-limit 500 --validation-fraction 0.1 --seed 42`. This creates 1,800 fitting examples, 200 validation examples, and an independent 500-example test subset. The six automated tests passed. These one-epoch, small-sample results verify the pipeline only; they are **not** a final MNIST performance claim.
+
+| Hidden activation | Validation accuracy | Independent test accuracy |
+| --- | ---: | ---: |
+| tanh | 0.6900 | 0.7320 |
+| ReLU | 0.6600 | 0.6640 |
+| Softplus | 0.4800 | 0.4660 |
+| Sigmoid | 0.3200 | 0.3840 |
 
 ## Project structure
 
@@ -182,6 +199,7 @@ MIT.
 1. 在其餘條件相同時，將隱藏層分別設為 `sigmoid`、`tanh`、`relu`、`softplus`，測試 MNIST 的 loss 與 accuracy。
 2. 說清楚 `Softmax` 應放在十分類輸出層的原因。
 3. 另外保留 `legacy` 模式，模擬「每一層都採相同激活函數」的教材式對照；這適合理解表格，不應視為正式模型設計。
+4. 將 MNIST 官方訓練集以固定 seed 切成訓練／驗證資料，官方測試集則完全保留到最後評估。
 
 ### 教材頁面中表 5-4 的結果，該怎麼看？
 
@@ -205,7 +223,7 @@ MIT.
 - 每張圖片是 `28 × 28` 灰階像素，灰階值本來在 `0…255`。
 - 全連接層一次接收一條特徵向量，所以先攤平成 `784 = 28 × 28` 維；再除以 `255` 正規化到 `[0, 1]`。
 - 類別是數字 `0…9`。本專案將整數標籤轉為 one-hot，例如 `3 → [0,0,0,1,0,0,0,0,0,0]`。
-- 訓練集是模型拿來更新權重的資料；測試／驗證集不參與更新，只用來檢查泛化能力。
+- 訓練集才用來更新權重。預設 `--validation-fraction 0.1` 時，官方 60,000 筆訓練資料中有 54,000 筆用於訓練、6,000 筆用於驗證；官方 10,000 筆測試集不參與每個 epoch 的監看，只在最後以 `evaluate()` 獨立評估。
 
 ### 2. 網路架構
 
@@ -277,7 +295,7 @@ pip install -r requirements.txt
 先跑小資料集確認環境：
 
 ```bash
-python run_experiment.py --suite hidden --epochs 2 --train-limit 10000 --test-limit 2000
+python run_experiment.py --suite hidden --epochs 2 --train-limit 10000 --test-limit 2000 --validation-fraction 0.1
 ```
 
 正式比較四個隱藏層激活函數（建議的現代多分類設定）：
@@ -294,8 +312,8 @@ python run_experiment.py --suite legacy --epochs 20 --hidden-units 784 --loss ms
 
 執行後會在 `results/` 產生：
 
-- `metrics.csv`：各實驗的最終 loss / accuracy / 時間。
-- `summary_accuracy.png`：總排名長條圖。
+- `metrics.csv`：各實驗最終的訓練、驗證、獨立測試指標與時間。
+- `summary_validation_accuracy.png`：依驗證正確率產生的候選模型排名；選擇激活函數時應看這張圖，不應以測試分數挑選。
 - `history_*.png`：每個實驗的 train / validation loss 與 accuracy 曲線。
 - `predictions_*.png`：16 張測試影像的真實類別與預測類別。
 - `run_config.json`：這次實驗的可重現參數。
@@ -310,7 +328,23 @@ python run_experiment.py --suite legacy --epochs 20 --hidden-units 784 --loss ms
 
 1. 先由**任務輸出語意**決定輸出層：MNIST 這種單標籤多分類選 Softmax。
 2. 再由梯度傳遞、收斂速度、資料正規化情況比較隱藏層：ReLU 是很合理的起點，tanh / Softplus 是可驗證的替代方案，Sigmoid 通常是較弱基線。
-3. 每一次只改一個因素，固定資料切分、seed、架構、epoch、batch size、optimizer，才可以解釋結果。
+3. 以驗證集的結果挑選激活函數；當比較設計已固定後，再將獨立測試分數當成最終泛化能力估計。
+4. 每一次只改一個因素，固定資料切分、seed、架構、epoch、batch size、optimizer，才可以解釋結果。
+
+## 驗證狀態
+
+自動化測試涵蓋：設定參數驗證、訓練／驗證資料切分的可重現性與互斥性、CLI 的驗證集比例選項，以及訓練流程是否確實以驗證集監看、以獨立測試集最終評估。安裝 `requirements.txt` 後執行前述快速指令，實測結果與完整設定會輸出到 `results/metrics.csv`。
+
+### 小規模實測（2026-10-16）
+
+本次以 TensorFlow 2.19.1 執行 `--epochs 1 --hidden-units 64 --batch-size 128 --train-limit 2000 --test-limit 500 --validation-fraction 0.1 --seed 42` 作為煙霧測試。此設定將資料分為 1,800 筆訓練、200 筆驗證，以及獨立 500 筆測試；六項自動化測試均通過。以下僅驗證管線可執行，**不是**完整 MNIST 訓練後可用來宣稱的最終排名。
+
+| 隱藏層激活函數 | 驗證正確率 | 獨立測試正確率 |
+| --- | ---: | ---: |
+| tanh | 0.6900 | 0.7320 |
+| ReLU | 0.6600 | 0.6640 |
+| Softplus | 0.4800 | 0.4660 |
+| Sigmoid | 0.3200 | 0.3840 |
 
 ## 專案結構
 
